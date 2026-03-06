@@ -34,7 +34,7 @@ blit_executable (${PROJECT_NAME}
 blit_assets_yaml (${PROJECT_NAME} assets.yml)
 blit_metadata (${PROJECT_NAME} metadata.yml)
 
-target_link_libraries(${PROJECT_NAME} LauncherShared)
+target_link_libraries(${PROJECT_NAME} LauncherShared DUH)
 
 add_custom_target (flash DEPENDS ${PROJECT_NAME}.flash)
 
