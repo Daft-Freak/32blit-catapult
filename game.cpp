@@ -3,14 +3,18 @@
 #include <optional>
 
 #include "32blit.hpp"
-#include "control-icons.hpp"
 #include "engine/api_private.hpp"
+
 #include "executable.hpp"
 #include "metadata.hpp"
+
+#include "control-icons.hpp"
 
 #include "assets.hpp"
 
 using namespace blit;
+
+#include "dialog.hpp" // assumes using namespace blit (probably should fix that)
 
 const Size splash_size(128, 96);
 const Point splash_half_size(splash_size.w / 2, splash_size.h / 2);
@@ -52,6 +56,8 @@ static Point scroll_offset;
 static Surface *default_splash, *folder_splash;
 
 static const Font launcher_font(asset_font8x8);
+
+static Dialog dialog;
 
 // startup animation
 const int startup_fade_len = 75;
@@ -506,9 +512,14 @@ void render(uint32_t time) {
     // launch animation
     if(do_launch)
         render_launch_anim();
+
+    dialog.draw();
 }
 
 void update(uint32_t time) {
+
+    if(dialog.update())
+        return;
 
     // update fade
     if(startup_fade)
@@ -528,7 +539,7 @@ void update(uint32_t time) {
             else
             {
                 // oh no
-                // TODO: display error
+                dialog.show("Error", "Failed to launch!", [](bool){}, false);
             }
 
             do_launch = false;
@@ -595,6 +606,8 @@ void update(uint32_t time) {
 
                 do_launch = true;
                 launch_anim_time = launch_anim_len;
+            } else {
+                dialog.show("Incompatible", "This file is not compatible with the firmware version on this device (or the device itself).", [](bool){}, false);
             }
         }
     }
