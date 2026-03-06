@@ -24,6 +24,7 @@ static const int path_save_slot = 256;
 struct MetadataCacheEntry {
     BlitGameMetadata data;
     bool valid = false;
+    bool can_launch;
     std::string path;
 };
 
@@ -85,8 +86,8 @@ static bool should_display_file(const std::string &path) {
 
     auto res = api.can_launch(path.c_str());
 
-    // TODO: display incompatible?
-    return res == CanLaunchResult::Success;
+    // display launchable and incompatible
+    return res == CanLaunchResult::Success || res == CanLaunchResult::IncompatibleBlit;
 }
 
 static void update_file_list() {
@@ -204,10 +205,22 @@ static BlitGameMetadata *get_metadata(const std::string &path) {
 
     it->valid = parse_file_metadata(path, it->data, true);
     it->path = path;
+    it->can_launch = api.can_launch && api.can_launch(path.c_str()) == CanLaunchResult::Success;
 
     metadata_cache.splice(metadata_cache.begin(), metadata_cache, it);
 
     return it->valid ? &it->data : nullptr;
+}
+
+// gets the cached value from the metadata cache
+static bool check_can_launch(const std::string &path) {
+    for(auto it = metadata_cache.begin(); it != metadata_cache.end(); ++it) {
+        if(it->path == path) {
+            return it->can_launch;
+        }
+    }
+
+    return false;
 }
 
 void init() {
@@ -282,6 +295,15 @@ void render(uint32_t time) {
         screen.alpha = scale * 255;
         screen.stretch_blit(splash_image, {Point(0, 0), splash_size}, splash_rect);
         screen.alpha = 255;
+
+        if(metadata && !check_can_launch(file_path)) {
+            // overlay incompatible message
+            screen.pen = {0, 0, 0, 0xC0};
+            screen.rectangle(splash_rect);
+
+            screen.pen = {255, 0, 0};
+            screen.text("INCOMPATIBLE!", launcher_font, splash_rect, true, TextAlign::center_center);
+        }
 
         // display additional info
         // width limit partly so wrap_text doesn't blow up trying to wrap after 0 chars
@@ -405,23 +427,25 @@ void update(uint32_t time) {
         if(buttons.released & Button::A) {
             auto &current_file = file_list[file_list_offset];
 
+            auto full_path = join_path(path, current_file.name);
+
             if(current_file.flags & FileFlags::directory) {
-                path = join_path(path, current_file.name);
+                // navigate to dir
+                path = full_path;
                 update_file_list();
 
                 dir_change_old_path = path;
 
                 scroll_offset.y -= screen.bounds.h;
-            } else {
-                auto launch_path = join_path(path, current_file.name);
+            } else if(check_can_launch(full_path)) {
 
                 // save last file launched
                 PathSave save{};
-                strncpy(save.last_path, launch_path.c_str(), sizeof(save.last_path) - 1);
+                strncpy(save.last_path, full_path.c_str(), sizeof(save.last_path) - 1);
                 write_save(save, path_save_slot);
 
                 // launch, probably
-                if(api.launch && api.launch(launch_path.c_str()))
+                if(api.launch && api.launch(full_path.c_str()))
                 {
                     // yay!
                 }
