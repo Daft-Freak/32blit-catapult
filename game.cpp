@@ -34,8 +34,14 @@ std::list<MetadataCacheEntry> metadata_cache;
 static std::string path = "";
 static std::string dir_change_old_path; // if we just entered/exited a dir
 
-// TODO: custom struct if we need more info
-static std::vector<FileInfo> file_list;
+// file list
+struct FileListItem {
+    // from blit::FileInfo
+    std::string name;
+    int flags;
+};
+
+static std::vector<FileListItem> file_list;
 static int file_list_offset = 0;
 
 static Point scroll_offset;
@@ -101,16 +107,17 @@ static bool should_display_file(const std::string &path) {
 }
 
 static void update_file_list() {
+    file_list.clear();
+
     if(path == "") {
         // top level installed/storage selection
 
-        file_list.clear();
-        file_list.emplace_back(FileInfo{"/", FileFlags::directory, 0});
+        file_list.emplace_back(FileListItem{"/", FileFlags::directory});
 
         if(api.list_installed_games)
-            file_list.emplace_back(FileInfo{"flash:", FileFlags::directory, 0});
+            file_list.emplace_back(FileListItem{"flash:", FileFlags::directory});
     } else {
-        file_list = list_files(path, [](const FileInfo &info){
+        auto temp_file_list = list_files(path, [](const FileInfo &info){
             // hidden file
             if(info.name[0] == '.' || info.name == "System Volume Information")
                 return false;
@@ -120,6 +127,13 @@ static void update_file_list() {
 
             return should_display_file(join_path(path, info.name));
         });
+
+        for(auto &file : temp_file_list) {
+            FileListItem item;
+            item.name = std::move(file.name);
+            item.flags = file.flags;
+            file_list.emplace_back(item);
+        }
     }
 
     // TODO: use a smaller sort function? (like the SDK launcher)
