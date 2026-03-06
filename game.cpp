@@ -378,7 +378,8 @@ void render(uint32_t time) {
         offset.x = -(scroll_offset.x % file_item_width);
         offset.y = scroll_offset.y < 0 ? -screen.bounds.h - scroll_offset.y : screen.bounds.h - scroll_offset.y;
 
-        render_file(directory_exists(dir_change_old_path), offset, dir_change_old_path);
+        bool is_dir = directory_exists(dir_change_old_path) || dir_change_old_path == "/" || dir_change_old_path == "flash:"; 
+        render_file(is_dir, offset, dir_change_old_path);
     }
 
     // draw current path
