@@ -300,7 +300,7 @@ static Point get_file_list_center() {
     return {screen.bounds.w / 2, screen.bounds.h / 3};
 }
 
-auto render_file = [](bool is_dir, Point offset, const std::string &file_path){
+static void render_file(bool is_dir, Point offset, const std::string &file_path) {
 
     // calculate splash size/pos
     auto splash_center = offset + get_file_list_center();
