@@ -11,6 +11,10 @@
 
 using namespace blit;
 
+const Size splash_size(128, 96);
+
+const int file_item_width = splash_size.w + 2;
+
 struct PathSave {
   char last_path[512];
 };
@@ -129,7 +133,7 @@ static void scroll_list_to(const std::string_view filename) {
         return;
 
     file_list_offset = offset;
-    scroll_offset.x = offset * screen.bounds.w;
+    scroll_offset.x = offset * file_item_width;
 }
 
 // TODO: this is copied from the SDK launcher...
@@ -192,6 +196,10 @@ static BlitGameMetadata *get_metadata(const std::string &path) {
         }
     }
 
+    //
+    debugf("load %s\n", path.c_str());
+    //
+
     // reuse least recently used
     auto it = std::prev(metadata_cache.end());
 
@@ -209,6 +217,7 @@ void init() {
     default_splash = Surface::load(asset_no_image);
     folder_splash = Surface::load(asset_folder_splash);
 
+    metadata_cache.emplace_front(MetadataCacheEntry{});
     metadata_cache.emplace_front(MetadataCacheEntry{});
     metadata_cache.emplace_front(MetadataCacheEntry{});
 
@@ -244,27 +253,33 @@ void render(uint32_t time) {
     screen.pen = Pen(0, 0, 0);
     screen.clear();
 
-    const Size splash_size(128, 96);
     const Point splash_half_size(splash_size.w / 2, splash_size.h / 2);
 
-    Point center_pos(screen.bounds.w / 2, screen.bounds.h / 2);
-    int full_list_width = file_list.size() * screen.bounds.w;
+    Point center_pos(screen.bounds.w / 2, screen.bounds.h / 3);
+    int full_list_width = file_list.size() * file_item_width;
 
     auto render_file = [&center_pos](bool is_dir, Point offset, const std::string &file_path){
-        auto metadata = is_dir ? nullptr : get_metadata(file_path);
 
-        // splash
-        const Size splash_size(128, 96);
+        // calculate splash size/pos
         const Point splash_half_size(splash_size.w / 2, splash_size.h / 2);
 
         auto splash_center = offset + center_pos;
         auto splash_image = is_dir ? folder_splash : default_splash;
 
+        float scale = 1.0f - Vec2(offset).length() / screen.bounds.w;
+        Rect splash_rect{splash_center - splash_half_size * scale, splash_center + splash_half_size * scale};
+    
+        // skip if offscreen
+        if(!screen.clip.intersects(splash_rect))
+            return;
+
+        // load metadata
+        auto metadata = is_dir ? nullptr : get_metadata(file_path);
+
         if(metadata)
             splash_image = metadata->splash;
 
-        float scale = 1.0f - Vec2(offset).length() / screen.bounds.w;
-        Rect splash_rect{splash_center - splash_half_size * scale, splash_center + splash_half_size * scale};
+        // draw
         screen.stretch_blit(splash_image, {Point(0, 0), splash_size}, splash_rect);
 
         // display additional info
@@ -274,12 +289,6 @@ void render(uint32_t time) {
             screen.rectangle(splash_rect);
 
             auto metadata_rect = splash_rect;
-
-            // 128px splash doesn't fit on 120x120 screen, clamp
-            if(metadata_rect.w > screen.bounds.w) {
-                metadata_rect.x -= (screen.bounds.w - metadata_rect.w) / 2;
-                metadata_rect.w = screen.bounds.w;
-            }
 
             metadata_rect.deflate(4);
 
@@ -315,12 +324,12 @@ void render(uint32_t time) {
 
     int i = 0;
     for(auto &info : file_list) {
-        auto file_pos = Point(i * screen.bounds.w, 0);
+        auto file_pos = Point(i * file_item_width, 0);
 
         auto offset = file_pos - scroll_offset;
 
         // wrap
-        if(offset.x > screen.bounds.w && scroll_offset.x < 0)
+        if(offset.x > screen.bounds.w)
             offset.x -= full_list_width;
         else if(offset.x <= -screen.bounds.w)
             offset.x += full_list_width;
@@ -336,10 +345,10 @@ void render(uint32_t time) {
         i++;
     }
 
-    // old item scrolling out
+    // old item scrolling out vertically
     if(scroll_offset.y != 0 && !dir_change_old_path.empty()) {
         Point offset;
-        offset.x = -(scroll_offset.x % screen.bounds.w);
+        offset.x = -(scroll_offset.x % file_item_width);
         offset.y = scroll_offset.y < 0 ? -screen.bounds.h - scroll_offset.y : screen.bounds.h - scroll_offset.y;
 
         render_file(directory_exists(dir_change_old_path), offset, dir_change_old_path);
@@ -357,7 +366,7 @@ void render(uint32_t time) {
 void update(uint32_t time) {
 
     // update scroll
-    int scroll_target_x = file_list_offset * screen.bounds.w;
+    int scroll_target_x = file_list_offset * file_item_width;
     if(scroll_offset.x != scroll_target_x) {
         int dir = scroll_offset.x < scroll_target_x ? 1 : -1;
 
@@ -377,14 +386,14 @@ void update(uint32_t time) {
             if(file_list_offset < 0) {
                 file_list_offset += file_list.size();
                 // wrap scroll pos as well
-                scroll_offset.x += file_list.size() * screen.bounds.w;
+                scroll_offset.x += file_list.size() * file_item_width;
             }
         
         } else if(buttons.released & Button::DPAD_RIGHT) {
             file_list_offset++;
             if(file_list_offset >= int(file_list.size())) {
                 file_list_offset = 0;
-                scroll_offset.x -= file_list.size() * screen.bounds.w;
+                scroll_offset.x -= file_list.size() * file_item_width;
             }
         }
 
