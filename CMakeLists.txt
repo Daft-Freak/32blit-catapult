@@ -15,11 +15,17 @@ if(MSVC)
   add_compile_options("/W4" "/wd4244" "/wd4324" "/wd4458" "/wd4100")
 else()
   add_compile_options("-Wall" "-Wextra" "-Wdouble-promotion" "-Wno-unused-parameter")
+
+  if(NOT 32BLIT_HW AND NOT PICO_SDK_PATH)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
+  endif()
 endif()
 
 find_package (32BLIT CONFIG REQUIRED PATHS ../32blit-sdk $ENV{PATH_32BLIT_SDK})
 
 add_subdirectory(${32BLIT_DIR}/launcher-shared launcher-shared)
+
+add_subdirectory(DUH)
 
 blit_executable (${PROJECT_NAME}
   PICO_BLIT PICO_BLIT_OFFSET_KB 256
