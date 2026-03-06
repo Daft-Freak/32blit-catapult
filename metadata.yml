@@ -1,5 +1,5 @@
-title: Slingshot
-description: A small launcher
+title: Catapult
+description: A launcher
 author: Daft_Freak
 splash:
   file: assets/no-image.png
@@ -7,4 +7,4 @@ icon:
   file: assets/no-icon.png
 version: v0.0.1
 category: launcher
-url: https://github.com/Daft-Freak/32blit-slingshot
+url: https://github.com/Daft-Freak/32blit-catapult
