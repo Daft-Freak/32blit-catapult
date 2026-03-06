@@ -355,10 +355,13 @@ void render(uint32_t time) {
 
         auto offset = file_pos - scroll_offset;
 
+        // final x offset assuming unscaled image
+        int full_size_off = offset.x + center_pos.x - splash_size.w / 2;
+
         // wrap
-        if(offset.x > screen.bounds.w)
+        if(full_size_off >= screen.bounds.w)
             offset.x -= full_list_width;
-        else if(offset.x <= -screen.bounds.w)
+        else if(full_size_off + splash_size.w <= 0)
             offset.x += full_list_width;
 
         if(offset.x > screen.bounds.w || offset.x < -screen.bounds.w) {
