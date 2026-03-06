@@ -3,6 +3,7 @@
 #include <optional>
 
 #include "32blit.hpp"
+#include "control-icons.hpp"
 #include "engine/api_private.hpp"
 #include "executable.hpp"
 #include "metadata.hpp"
@@ -484,6 +485,18 @@ void render(uint32_t time) {
     screen.pen = Pen(0, 0, 0);
     screen.text(path, launcher_font, Point(5, 2));
 
+    // control icons
+    screen.pen = {255, 255, 255};
+    int y = screen.bounds.h - 16;
+
+    if(path != "") {
+        duh::draw_control_icon(&screen, duh::Icon::B, {4, y});
+        screen.text("Back", launcher_font, {20, y, 0, 16}, true, TextAlign::center_left);
+    }
+
+    duh::draw_control_icon(&screen, duh::Icon::A, {48, y});
+        screen.text("Open", launcher_font, {64, y, 0, 16}, true, TextAlign::center_left);
+    
     // fade in at startup
     if(startup_fade) {
         screen.pen = {0, 0, 0, startup_fade * 255 / startup_fade_len};
