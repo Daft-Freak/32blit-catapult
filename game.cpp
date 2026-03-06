@@ -39,6 +39,8 @@ struct FileListItem {
     // from blit::FileInfo
     std::string name;
     int flags;
+
+    std::string sort_name;
 };
 
 static std::vector<FileListItem> file_list;
@@ -58,6 +60,8 @@ static int startup_fade = startup_fade_len;
 const int launch_anim_len = 30;
 static int launch_anim_time = launch_anim_len;
 static bool do_launch = false;
+
+static bool parse_file_metadata(const std::string &filename, BlitGameMetadata &metadata, bool unpack_images = false);
 
 static std::string join_path(const std::string &a, const std::string &b) {
     if(a.empty())
@@ -112,10 +116,10 @@ static void update_file_list() {
     if(path == "") {
         // top level installed/storage selection
 
-        file_list.emplace_back(FileListItem{"/", FileFlags::directory});
+        file_list.emplace_back(FileListItem{"/", FileFlags::directory, "1"});
 
         if(api.list_installed_games)
-            file_list.emplace_back(FileListItem{"flash:", FileFlags::directory});
+            file_list.emplace_back(FileListItem{"flash:", FileFlags::directory, "0"});
     } else {
         auto temp_file_list = list_files(path, [](const FileInfo &info){
             // hidden file
@@ -132,12 +136,20 @@ static void update_file_list() {
             FileListItem item;
             item.name = std::move(file.name);
             item.flags = file.flags;
+
+            // sort by displayed name if possible
+            BlitGameMetadata meta;
+            if(parse_file_metadata(join_path(path, item.name), meta))
+                item.sort_name = meta.title;
+            else
+                item.sort_name = item.name;
+
             file_list.emplace_back(item);
         }
     }
 
     // TODO: use a smaller sort function? (like the SDK launcher)
-    std::sort(file_list.begin(), file_list.end(), [](const auto &a, const auto &b) {return a.name < b.name;});
+    std::sort(file_list.begin(), file_list.end(), [](const auto &a, const auto &b) {return a.sort_name < b.sort_name;});
 
     file_list_offset = 0;
     scroll_offset.x = 0;
@@ -161,7 +173,7 @@ static void scroll_list_to(const std::string_view filename) {
 }
 
 // TODO: this is copied from the SDK launcher...
-static bool parse_file_metadata(const std::string &filename, BlitGameMetadata &metadata, bool unpack_images = false) {
+static bool parse_file_metadata(const std::string &filename, BlitGameMetadata &metadata, bool unpack_images) {
     blit::File f(filename);
 
     if(!f.is_open())
