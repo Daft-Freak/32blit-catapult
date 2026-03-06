@@ -409,22 +409,25 @@ void update(uint32_t time) {
 
     if(!file_list.empty()) {
         // list scrolling
-        if(buttons.released & Button::DPAD_LEFT) {
-            file_list_offset--;
-            if(file_list_offset < 0) {
-                file_list_offset += file_list.size();
-                // wrap scroll pos as well
-                scroll_offset.x += file_list.size() * file_item_width;
-            }
-        
-        } else if(buttons.released & Button::DPAD_RIGHT) {
-            file_list_offset++;
-            if(file_list_offset >= int(file_list.size())) {
-                file_list_offset = 0;
-                scroll_offset.x -= file_list.size() * file_item_width;
+        if(file_list.size() > 1) {
+            if(buttons.released & Button::DPAD_LEFT) {
+                file_list_offset--;
+                if(file_list_offset < 0) {
+                    file_list_offset += file_list.size();
+                    // wrap scroll pos as well
+                    scroll_offset.x += file_list.size() * file_item_width;
+                }
+            
+            } else if(buttons.released & Button::DPAD_RIGHT) {
+                file_list_offset++;
+                if(file_list_offset >= int(file_list.size())) {
+                    file_list_offset = 0;
+                    scroll_offset.x -= file_list.size() * file_item_width;
+                }
             }
         }
 
+        // activate selected item
         if(buttons.released & Button::A) {
             auto &current_file = file_list[file_list_offset];
 
