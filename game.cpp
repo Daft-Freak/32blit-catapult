@@ -296,98 +296,129 @@ void init() {
     update_file_list();
 }
 
+static Point get_file_list_center() {
+    return {screen.bounds.w / 2, screen.bounds.h / 3};
+}
+
+auto render_file = [](bool is_dir, Point offset, const std::string &file_path){
+
+    // calculate splash size/pos
+    auto splash_center = offset + get_file_list_center();
+    auto splash_image = is_dir ? folder_splash : default_splash;
+
+    float scale = 1.0f - Vec2(offset).length() / screen.bounds.w;
+    Rect splash_rect{splash_center - splash_half_size * scale, splash_center + splash_half_size * scale};
+
+    // skip if offscreen
+    if(!screen.clip.intersects(splash_rect))
+        return;
+
+    // load metadata
+    auto metadata = is_dir ? nullptr : get_metadata(file_path);
+
+    if(metadata)
+        splash_image = metadata->splash;
+
+    // draw
+    // skip the "current" item during launch animation
+    if(!do_launch || offset.x) {
+        screen.alpha = scale * 255;
+        screen.stretch_blit(splash_image, {Point(0, 0), splash_size}, splash_rect);
+        screen.alpha = 255;
+    }
+
+    if(metadata && !check_can_launch(file_path)) {
+        // overlay incompatible message
+        screen.pen = {0, 0, 0, 0xC0};
+        screen.rectangle(splash_rect);
+
+        screen.pen = {255, 0, 0};
+        screen.text("INCOMPATIBLE!", launcher_font, splash_rect, true, TextAlign::center_center);
+    }
+
+    // display additional info
+    // width limit partly so wrap_text doesn't blow up trying to wrap after 0 chars
+    int min_w = 96;
+    if(metadata && splash_rect.w > min_w) {
+
+        float a = float(splash_rect.w - min_w) / (splash_size.w - min_w);
+
+        // fade out info during launch anim
+        if(do_launch) {
+            float progress = 1.0f - (float(launch_anim_time) / launch_anim_len);
+            a *= (1.0f - progress);
+        }
+
+        auto metadata_rect = splash_rect;
+        // use the space below the splash
+        metadata_rect.y += splash_rect.h + 16;
+        metadata_rect.h = screen.bounds.h - metadata_rect.y - 20;
+
+        metadata_rect.deflate(4);
+
+        auto saved_clip = screen.clip;
+
+        // description
+        screen.pen = {255, 255, 255, uint8_t(a * 255)};
+        screen.clip = saved_clip.intersection(metadata_rect);
+        auto wrapped_desc = screen.wrap_text(metadata->description, metadata_rect.w, launcher_font);
+        screen.text(wrapped_desc, launcher_font, metadata_rect);
+
+        // author/version
+        screen.text(metadata->author + "\n" + metadata->version, launcher_font, metadata_rect, true, TextAlign::bottom_left);
+
+        screen.clip = saved_clip;
+    }
+
+    // game title/dir name
+    std::string_view label;
+
+    if(metadata)
+        label = metadata->title;
+    else if(file_path == "/")
+        label = "Storage";
+    else if(file_path == "flash:")
+        label = "Installed";
+    else
+        label = split_path_last(file_path).second;
+
+    screen.pen = {255, 255, 255};
+    screen.text(label, launcher_font, splash_center + Point(0, (splash_size.h / 2) * scale + 6), true, TextAlign::center_center);
+};
+
+static void render_launch_anim() {
+    // slide to true center
+    auto start_pos = get_file_list_center();
+    Point end_pos(screen.bounds.w / 2, screen.bounds.h / 2);
+
+    // scale up to fill screen
+    float target_scale = float(screen.bounds.w) / splash_size.w;
+
+    // calc current pos/size
+    float progress = 1.0f - (float(launch_anim_time) / launch_anim_len);
+
+    float scale = target_scale * progress + (1.0f - progress);
+    Point pos = end_pos * progress + start_pos * (1.0f - progress);
+
+    Rect splash_rect{pos - splash_half_size * scale, pos + splash_half_size * scale};
+
+    // get splash
+    auto &current_file = file_list[file_list_offset];
+    auto full_path = join_path(path, current_file.name);
+    auto metadata = get_metadata(full_path);
+
+    auto splash = metadata ? metadata->splash : default_splash;
+
+    // draw it
+    screen.stretch_blit(splash, {Point{}, splash->bounds}, splash_rect);
+}
+
 void render(uint32_t time) {
     screen.pen = Pen(20, 20, 20);
     screen.clear();
 
-    Point center_pos(screen.bounds.w / 2, screen.bounds.h / 3);
+    auto center_pos = get_file_list_center();
     int full_list_width = file_list.size() * file_item_width;
-
-    auto render_file = [&center_pos](bool is_dir, Point offset, const std::string &file_path){
-
-        // calculate splash size/pos
-        auto splash_center = offset + center_pos;
-        auto splash_image = is_dir ? folder_splash : default_splash;
-
-        float scale = 1.0f - Vec2(offset).length() / screen.bounds.w;
-        Rect splash_rect{splash_center - splash_half_size * scale, splash_center + splash_half_size * scale};
-    
-        // skip if offscreen
-        if(!screen.clip.intersects(splash_rect))
-            return;
-
-        // load metadata
-        auto metadata = is_dir ? nullptr : get_metadata(file_path);
-
-        if(metadata)
-            splash_image = metadata->splash;
-
-        // draw
-        // skip the "current" item during launch animation
-        if(!do_launch || offset.x) {
-            screen.alpha = scale * 255;
-            screen.stretch_blit(splash_image, {Point(0, 0), splash_size}, splash_rect);
-            screen.alpha = 255;
-        }
-
-        if(metadata && !check_can_launch(file_path)) {
-            // overlay incompatible message
-            screen.pen = {0, 0, 0, 0xC0};
-            screen.rectangle(splash_rect);
-
-            screen.pen = {255, 0, 0};
-            screen.text("INCOMPATIBLE!", launcher_font, splash_rect, true, TextAlign::center_center);
-        }
-
-        // display additional info
-        // width limit partly so wrap_text doesn't blow up trying to wrap after 0 chars
-        int min_w = 96;
-        if(metadata && splash_rect.w > min_w) {
-
-            float a = float(splash_rect.w - min_w) / (splash_size.w - min_w);
-
-            // fade out info during launch anim
-            if(do_launch) {
-                float progress = 1.0f - (float(launch_anim_time) / launch_anim_len);
-                a *= (1.0f - progress);
-            }
-
-            auto metadata_rect = splash_rect;
-            // use the space below the splash
-            metadata_rect.y += splash_rect.h + 16;
-            metadata_rect.h = screen.bounds.h - metadata_rect.y - 20;
-
-            metadata_rect.deflate(4);
-
-            auto saved_clip = screen.clip;
-
-            // description
-            screen.pen = {255, 255, 255, uint8_t(a * 255)};
-            screen.clip = saved_clip.intersection(metadata_rect);
-            auto wrapped_desc = screen.wrap_text(metadata->description, metadata_rect.w, launcher_font);
-            screen.text(wrapped_desc, launcher_font, metadata_rect);
-
-            // author/version
-            screen.text(metadata->author + "\n" + metadata->version, launcher_font, metadata_rect, true, TextAlign::bottom_left);
-
-            screen.clip = saved_clip;
-        }
-
-        // game title/dir name
-        std::string_view label;
-
-        if(metadata)
-            label = metadata->title;
-        else if(file_path == "/")
-            label = "Storage";
-        else if(file_path == "flash:")
-            label = "Installed";
-        else
-            label = split_path_last(file_path).second;
-
-        screen.pen = {255, 255, 255};
-        screen.text(label, launcher_font, splash_center + Point(0, (splash_size.h / 2) * scale + 6), true, TextAlign::center_center);
-    };
 
     int i = 0;
     for(auto &info : file_list) {
@@ -460,32 +491,8 @@ void render(uint32_t time) {
     }
 
     // launch animation
-    if(do_launch) {
-        // slide to true center
-        auto start_pos = center_pos;
-        Point end_pos(screen.bounds.w / 2, screen.bounds.h / 2);
-
-        // scale up to fill screen
-        float target_scale = float(screen.bounds.w) / splash_size.w;
-
-        // calc current pos/size
-        float progress = 1.0f - (float(launch_anim_time) / launch_anim_len);
-
-        float scale = target_scale * progress + (1.0f - progress);
-        Point pos = end_pos * progress + start_pos * (1.0f - progress);
-
-        Rect splash_rect{pos - splash_half_size * scale, pos + splash_half_size * scale};
-
-        // get splash
-        auto &current_file = file_list[file_list_offset];
-        auto full_path = join_path(path, current_file.name);
-        auto metadata = get_metadata(full_path);
-
-        auto splash = metadata ? metadata->splash : default_splash;
-
-        // draw it
-        screen.stretch_blit(splash, {Point{}, splash->bounds}, splash_rect);
-    }
+    if(do_launch)
+        render_launch_anim();
 }
 
 void update(uint32_t time) {
