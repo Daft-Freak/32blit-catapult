@@ -37,7 +37,6 @@ static std::vector<FileInfo> file_list;
 static int file_list_offset = 0;
 
 static Point scroll_offset;
-static bool show_details = false;
 
 static Surface *default_splash, *folder_splash;
 
@@ -250,7 +249,7 @@ void init() {
 
 void render(uint32_t time) {
 
-    screen.pen = Pen(0, 0, 0);
+    screen.pen = Pen(20, 20, 20);
     screen.clear();
 
     const Point splash_half_size(splash_size.w / 2, splash_size.h / 2);
@@ -280,23 +279,29 @@ void render(uint32_t time) {
             splash_image = metadata->splash;
 
         // draw
+        screen.alpha = scale * 255;
         screen.stretch_blit(splash_image, {Point(0, 0), splash_size}, splash_rect);
+        screen.alpha = 255;
 
         // display additional info
         // width limit partly so wrap_text doesn't blow up trying to wrap after 0 chars
-        if(metadata && splash_rect.w > 64 && show_details) {
-            screen.pen = {0, 0, 0, 0xC0};
-            screen.rectangle(splash_rect);
+        int min_w = 96;
+        if(metadata && splash_rect.w > min_w) {
+
+            float a = float(splash_rect.w - min_w) / (splash_size.w - min_w);
 
             auto metadata_rect = splash_rect;
+            // use the space below the splash
+            metadata_rect.y += splash_rect.h + 16;
+            metadata_rect.h = screen.bounds.h - metadata_rect.y - 20;
 
             metadata_rect.deflate(4);
 
             auto saved_clip = screen.clip;
 
             // description
-            screen.pen = {255, 255, 255};
-            screen.clip = metadata_rect;
+            screen.pen = {255, 255, 255, uint8_t(a * 255)};
+            screen.clip = saved_clip.intersection(metadata_rect);
             auto wrapped_desc = screen.wrap_text(metadata->description, metadata_rect.w, launcher_font);
             screen.text(wrapped_desc, launcher_font, metadata_rect);
 
@@ -452,9 +457,5 @@ void update(uint32_t time) {
             scroll_offset.y += screen.bounds.h;
             scroll_list_to(old_dir);
         }
-    }
-
-    if(buttons.released & Button::Y) {
-        show_details = !show_details;
     }
 }
