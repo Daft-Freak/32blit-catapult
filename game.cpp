@@ -517,7 +517,7 @@ void update(uint32_t time) {
     if(scroll_offset.y != 0) {
         int dir = scroll_offset.y < 0 ? 1 : -1;
 
-        scroll_offset.y += dir * 3;
+        scroll_offset.y += dir * 5;
     }
 
     if(!file_list.empty()) {
