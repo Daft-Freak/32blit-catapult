@@ -271,7 +271,6 @@ void init() {
 }
 
 void render(uint32_t time) {
-
     screen.pen = Pen(20, 20, 20);
     screen.clear();
 
@@ -298,9 +297,12 @@ void render(uint32_t time) {
             splash_image = metadata->splash;
 
         // draw
-        screen.alpha = scale * 255;
-        screen.stretch_blit(splash_image, {Point(0, 0), splash_size}, splash_rect);
-        screen.alpha = 255;
+        // skip the "current" item during launch animation
+        if(!do_launch || offset.x) {
+            screen.alpha = scale * 255;
+            screen.stretch_blit(splash_image, {Point(0, 0), splash_size}, splash_rect);
+            screen.alpha = 255;
+        }
 
         if(metadata && !check_can_launch(file_path)) {
             // overlay incompatible message
@@ -317,6 +319,12 @@ void render(uint32_t time) {
         if(metadata && splash_rect.w > min_w) {
 
             float a = float(splash_rect.w - min_w) / (splash_size.w - min_w);
+
+            // fade out info during launch anim
+            if(do_launch) {
+                float progress = 1.0f - (float(launch_anim_time) / launch_anim_len);
+                a *= (1.0f - progress);
+            }
 
             auto metadata_rect = splash_rect;
             // use the space below the splash
@@ -420,8 +428,10 @@ void render(uint32_t time) {
     screen.text(path, launcher_font, Point(5, 2));
 
     // fade in at startup
-    screen.pen = {0, 0, 0, startup_fade * 255 / startup_fade_len};
-    screen.rectangle(screen.clip);
+    if(startup_fade) {
+        screen.pen = {0, 0, 0, startup_fade * 255 / startup_fade_len};
+        screen.rectangle(screen.clip);
+    }
 
     // launch animation
     if(do_launch) {
@@ -448,9 +458,7 @@ void render(uint32_t time) {
         auto splash = metadata ? metadata->splash : default_splash;
 
         // draw it
-        screen.alpha = progress * 255;
         screen.stretch_blit(splash, {Point{}, splash->bounds}, splash_rect);
-        screen.alpha = 255;
     }
 }
 
