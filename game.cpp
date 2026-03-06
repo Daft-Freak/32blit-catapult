@@ -43,6 +43,9 @@ static Surface *default_splash, *folder_splash;
 
 static const Font launcher_font(asset_font8x8);
 
+const int startup_fade_len = 75;
+static int startup_fade = startup_fade_len;
+
 static std::string join_path(const std::string &a, const std::string &b) {
     if(a.empty())
         return b;
@@ -412,9 +415,17 @@ void render(uint32_t time) {
     // TODO: scroll if too long
     screen.pen = Pen(0, 0, 0);
     screen.text(path, launcher_font, Point(5, 2));
+
+    // fade in at startup
+    screen.pen = {0, 0, 0, startup_fade * 255 / startup_fade_len};
+    screen.rectangle(screen.clip);
 }
 
 void update(uint32_t time) {
+
+    // update fade
+    if(startup_fade)
+        startup_fade--;
 
     // update scroll
     int scroll_target_x = file_list_offset * file_item_width;
