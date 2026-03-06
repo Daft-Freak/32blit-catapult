@@ -204,6 +204,8 @@ static BlitGameMetadata *get_metadata(const std::string &path) {
 }
 
 void init() {
+    set_screen_mode(ScreenMode::hires);
+
     default_splash = Surface::load(asset_no_image);
     folder_splash = Surface::load(asset_folder_splash);
 

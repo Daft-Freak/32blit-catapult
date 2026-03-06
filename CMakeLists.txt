@@ -27,10 +27,6 @@ blit_metadata (${PROJECT_NAME} metadata.yml)
 
 target_link_libraries(${PROJECT_NAME} LauncherShared)
 
-if(PICO_BOARD STREQUAL "pimoroni_picosystem")
-  target_compile_definitions(${PROJECT_NAME} PRIVATE ALLOW_HIRES=0)
-endif()
-
 add_custom_target (flash DEPENDS ${PROJECT_NAME}.flash)
 
 # setup release packages
