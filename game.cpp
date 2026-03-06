@@ -208,7 +208,7 @@ static BlitGameMetadata *get_metadata(const std::string &path) {
 
     it->valid = parse_file_metadata(path, it->data, true);
     it->path = path;
-    it->can_launch = api.can_launch && api.can_launch(path.c_str()) == CanLaunchResult::Success;
+    it->can_launch = !api.can_launch || api.can_launch(path.c_str()) == CanLaunchResult::Success;
 
     metadata_cache.splice(metadata_cache.begin(), metadata_cache, it);
 
