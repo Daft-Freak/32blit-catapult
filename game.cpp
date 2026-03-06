@@ -375,6 +375,26 @@ void render(uint32_t time) {
         i++;
     }
 
+    // wrap two-item list
+    if(file_list.size() == 2) {
+        // draw first item again to the right
+        auto offset = Point(full_list_width, 0) - scroll_offset;
+
+        // ... or the left if we're wrapping from item 1 -> item 0 (moving right)
+        if(scroll_offset.x < 0)
+            offset.x -= full_list_width * 2;
+
+        render_file(file_list[0].flags & FileFlags::directory, offset, join_path(path, file_list[0].name));
+
+        // draw second item again to the left
+        offset = Point(file_item_width - full_list_width, 0) - scroll_offset;
+        // ... or the right if we're wrapping from item 0 -> item 1 (moving left)
+        if(scroll_offset.x > file_item_width)
+            offset.x += full_list_width * 2;
+
+        render_file(file_list[1].flags & FileFlags::directory, offset, join_path(path, file_list[1].name));
+    }
+
     // old item scrolling out vertically
     if(scroll_offset.y != 0 && !dir_change_old_path.empty()) {
         Point offset;
