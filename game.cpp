@@ -12,6 +12,7 @@
 using namespace blit;
 
 const Size splash_size(128, 96);
+const Point splash_half_size(splash_size.w / 2, splash_size.h / 2);
 
 const int file_item_width = splash_size.w + 2;
 
@@ -43,8 +44,14 @@ static Surface *default_splash, *folder_splash;
 
 static const Font launcher_font(asset_font8x8);
 
+// startup animation
 const int startup_fade_len = 75;
 static int startup_fade = startup_fade_len;
+
+// launch animation
+const int launch_anim_len = 30;
+static int launch_anim_time = launch_anim_len;
+static bool do_launch = false;
 
 static std::string join_path(const std::string &a, const std::string &b) {
     if(a.empty())
@@ -268,16 +275,12 @@ void render(uint32_t time) {
     screen.pen = Pen(20, 20, 20);
     screen.clear();
 
-    const Point splash_half_size(splash_size.w / 2, splash_size.h / 2);
-
     Point center_pos(screen.bounds.w / 2, screen.bounds.h / 3);
     int full_list_width = file_list.size() * file_item_width;
 
     auto render_file = [&center_pos](bool is_dir, Point offset, const std::string &file_path){
 
         // calculate splash size/pos
-        const Point splash_half_size(splash_size.w / 2, splash_size.h / 2);
-
         auto splash_center = offset + center_pos;
         auto splash_image = is_dir ? folder_splash : default_splash;
 
@@ -419,6 +422,36 @@ void render(uint32_t time) {
     // fade in at startup
     screen.pen = {0, 0, 0, startup_fade * 255 / startup_fade_len};
     screen.rectangle(screen.clip);
+
+    // launch animation
+    if(do_launch) {
+        // slide to true center
+        auto start_pos = center_pos;
+        Point end_pos(screen.bounds.w / 2, screen.bounds.h / 2);
+
+        // scale up to fill screen
+        float target_scale = float(screen.bounds.w) / splash_size.w;
+
+        // calc current pos/size
+        float progress = 1.0f - (float(launch_anim_time) / launch_anim_len);
+
+        float scale = target_scale * progress + (1.0f - progress);
+        Point pos = end_pos * progress + start_pos * (1.0f - progress);
+
+        Rect splash_rect{pos - splash_half_size * scale, pos + splash_half_size * scale};
+
+        // get splash
+        auto &current_file = file_list[file_list_offset];
+        auto full_path = join_path(path, current_file.name);
+        auto metadata = get_metadata(full_path);
+
+        auto splash = metadata ? metadata->splash : default_splash;
+
+        // draw it
+        screen.alpha = progress * 255;
+        screen.stretch_blit(splash, {Point{}, splash->bounds}, splash_rect);
+        screen.alpha = 255;
+    }
 }
 
 void update(uint32_t time) {
@@ -426,6 +459,30 @@ void update(uint32_t time) {
     // update fade
     if(startup_fade)
         startup_fade--;
+
+    if(do_launch) {
+        // update launch anim
+        if(launch_anim_time == 0) {
+            auto &current_file = file_list[file_list_offset];
+            auto full_path = join_path(path, current_file.name);
+
+            // launch, probably
+            if(api.launch && api.launch(full_path.c_str()))
+            {
+                // yay!
+            }
+            else
+            {
+                // oh no
+                // TODO: display error
+            }
+
+            do_launch = false;
+        } else
+            launch_anim_time--;
+
+        return;
+    }
 
     // update scroll
     int scroll_target_x = file_list_offset * file_item_width;
@@ -482,16 +539,8 @@ void update(uint32_t time) {
                 strncpy(save.last_path, full_path.c_str(), sizeof(save.last_path) - 1);
                 write_save(save, path_save_slot);
 
-                // launch, probably
-                if(api.launch && api.launch(full_path.c_str()))
-                {
-                    // yay!
-                }
-                else
-                {
-                    // oh no
-                    // TODO: display error
-                }
+                do_launch = true;
+                launch_anim_time = launch_anim_len;
             }
         }
     }
