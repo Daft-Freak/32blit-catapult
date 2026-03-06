@@ -501,8 +501,13 @@ void render(uint32_t time) {
     }
 
     duh::draw_control_icon(&screen, duh::Icon::A, {48, y});
-        screen.text("Open", launcher_font, {64, y, 0, 16}, true, TextAlign::center_left);
+    screen.text("Open", launcher_font, {64, y, 0, 16}, true, TextAlign::center_left);
     
+    if(!file_list.empty() && file_exists(join_path(path, file_list[file_list_offset].name))) {
+        duh::draw_control_icon(&screen, duh::Icon::X, {92, y});
+        screen.text("Delete", launcher_font, {108, y, 0, 16}, true, TextAlign::center_left);
+    }
+
     // fade in at startup
     if(startup_fade) {
         screen.pen = {0, 0, 0, startup_fade * 255 / startup_fade_len};
@@ -514,6 +519,22 @@ void render(uint32_t time) {
         render_launch_anim();
 
     dialog.draw();
+}
+
+static void on_delete_answer(bool result) {
+
+    if(result) {
+        auto &current_file = file_list[file_list_offset];
+        auto full_path = join_path(path, current_file.name);
+
+        // erase from flash
+        // TODO: this API is inconsistent with launch...
+        if(full_path.compare(0, 7, "flash:/") == 0)
+            api.erase_game(std::stoi(full_path.substr(7)) * 0x10000);
+
+        ::remove_file(full_path);
+        update_file_list();
+    }
 }
 
 void update(uint32_t time) {
@@ -634,6 +655,14 @@ void update(uint32_t time) {
             update_file_list();
             scroll_offset.y += screen.bounds.h;
             scroll_list_to(old_dir);
+        }
+    }
+
+    // delete
+    if(buttons.released & Button::X) {
+        auto &current_file = file_list[file_list_offset];
+        if(!(current_file.flags & FileFlags::directory)) {
+            dialog.show("Confirm", "Really delete " + current_file.sort_name + "?", on_delete_answer);
         }
     }
 }
