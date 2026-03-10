@@ -537,9 +537,11 @@ void render(uint32_t time) {
         screen.text("Back", launcher_font, {20, y, 0, 16}, true, TextAlign::center_left);
     }
 
-    duh::draw_control_icon(&screen, duh::Icon::A, {48, y});
-    screen.text("Open", launcher_font, {64, y, 0, 16}, true, TextAlign::center_left);
-    
+    if(!file_list.empty()) {
+        duh::draw_control_icon(&screen, duh::Icon::A, {48, y});
+        screen.text("Open", launcher_font, {64, y, 0, 16}, true, TextAlign::center_left);
+    }
+
     if(!file_list.empty() && file_exists(join_path(path, file_list[file_list_offset].name))) {
         duh::draw_control_icon(&screen, duh::Icon::X, {92, y});
         screen.text("Delete", launcher_font, {108, y, 0, 16}, true, TextAlign::center_left);
