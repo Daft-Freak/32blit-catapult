@@ -107,6 +107,18 @@ static std::pair<std::string_view, std::string_view> split_path_last(const std::
     return {path.substr(0, pos), path.substr(pos + 1, len - pos - 1)};
 }
 
+// returns lowercased extension
+static std::string get_file_ext(const char *path) {
+  // get the extension
+  std::string_view sv(path);
+  auto last_dot = sv.find_last_of('.');
+  auto ext = last_dot == std::string::npos ? "" : std::string(sv.substr(last_dot + 1));
+  for(auto &c : ext)
+    c = tolower(c);
+
+  return ext;
+}
+
 static bool should_display_file(const std::string &path) {
     if(!api.can_launch)
         return true;
@@ -247,6 +259,25 @@ static BlitGameMetadata *get_metadata(const std::string &path) {
     auto it = std::prev(metadata_cache.end());
 
     it->valid = parse_file_metadata(path, it->data, true);
+
+    // TODO: try .blmeta
+
+    if(!it->valid && api.get_type_handler_metadata) {
+        // check for handler metadata
+        auto ext = get_file_ext(path.c_str());
+        auto meta = api.get_type_handler_metadata(ext.c_str());
+
+        if(meta) {
+            auto len = *((uint16_t *)meta + 4);
+            parse_metadata((char *)meta + 10, len, it->data, true);
+            it->valid = true;
+
+            // remap name/desc
+            it->data.description = "Launches with: " + it->data.title;
+            it->data.title = split_path_last(path).second;
+        }
+    }
+
     it->path = path;
     it->can_launch = !api.can_launch || api.can_launch(path.c_str()) == CanLaunchResult::Success;
 
