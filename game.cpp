@@ -624,20 +624,37 @@ void update(uint32_t time) {
     if(!file_list.empty()) {
         // list scrolling
         if(file_list.size() > 1) {
-            if(buttons.released & Button::DPAD_LEFT) {
+
+            auto scroll_left = [](){
                 file_list_offset--;
                 if(file_list_offset < 0) {
                     file_list_offset += file_list.size();
                     // wrap scroll pos as well
                     scroll_offset.x += file_list.size() * file_item_width;
                 }
-            
-            } else if(buttons.released & Button::DPAD_RIGHT) {
+            };
+
+            auto scroll_right = [](){
                 file_list_offset++;
                 if(file_list_offset >= int(file_list.size())) {
                     file_list_offset = 0;
                     scroll_offset.x -= file_list.size() * file_item_width;
                 }
+            };
+
+            // dpad
+            if(buttons.released & Button::DPAD_LEFT) {
+                scroll_left();
+            } else if(buttons.released & Button::DPAD_RIGHT) {
+                scroll_right();
+            }
+
+            // joystick
+            if(scroll_offset.x == scroll_target_x) {
+                if(joystick.x < -0.5f)
+                    scroll_left();
+                else if(joystick.x > 0.5f)
+                    scroll_right();
             }
         }
 
