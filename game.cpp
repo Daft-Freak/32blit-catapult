@@ -321,7 +321,7 @@ void init() {
     if(read_save(save, path_save_slot)) {
         auto split = split_path_last(save.last_path);
 
-        if(directory_exists(std::string(split.first)) || split.first == "flash:") {
+        if(directory_exists(std::string(split.first)) || split.first == "flash:" || split.first == "/") {
             path = split.first;
             update_file_list();
 
