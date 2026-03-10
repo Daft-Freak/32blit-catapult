@@ -158,7 +158,8 @@ static void update_file_list() {
 
             // sort by displayed name if possible
             BlitGameMetadata meta;
-            if(parse_file_metadata(join_path(path, item.name), meta))
+            auto full_path = join_path(path, item.name);
+            if(parse_file_metadata(full_path, meta) || parse_file_metadata(full_path.append(".blmeta"), meta))
                 item.sort_name = meta.title;
             else
                 item.sort_name = item.name;
@@ -260,7 +261,12 @@ static BlitGameMetadata *get_metadata(const std::string &path) {
 
     it->valid = parse_file_metadata(path, it->data, true);
 
-    // TODO: try .blmeta
+    // try .blmeta
+    if(!it->valid) {
+        auto meta_path = path + ".blmeta";
+        if(file_exists(meta_path))
+            it->valid = parse_file_metadata(meta_path, it->data, true);
+    }
 
     if(!it->valid && api.get_type_handler_metadata) {
         // check for handler metadata
