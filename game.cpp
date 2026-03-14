@@ -66,7 +66,8 @@ static int startup_fade = startup_fade_len;
 // launch animation
 const int launch_anim_len = 30;
 static int launch_anim_time = launch_anim_len;
-static bool do_launch = false, did_last_render_before_launch = false;
+static bool do_launch = false;
+static int did_last_render_before_launch = 0;
 
 static bool parse_file_metadata(const std::string &filename, BlitGameMetadata &metadata, bool unpack_images = false);
 
@@ -457,7 +458,7 @@ static void render_launch_anim() {
     screen.stretch_blit(splash, {Point{}, splash->bounds}, splash_rect);
 
     if(launch_anim_time == 0)
-        did_last_render_before_launch = true;
+        did_last_render_before_launch++;
 }
 
 void render(uint32_t time) {
@@ -590,7 +591,7 @@ void update(uint32_t time) {
 
     if(do_launch) {
         // update launch anim
-        if(launch_anim_time == 0 && did_last_render_before_launch) {
+        if(launch_anim_time == 0 && did_last_render_before_launch > 1) {
             auto &current_file = file_list[file_list_offset];
             auto full_path = join_path(path, current_file.name);
 
